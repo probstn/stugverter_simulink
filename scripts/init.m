@@ -13,3 +13,5 @@ run('controller.m');
 % run('inverter.m');
 % run('resolver.m');
 % run('adc.m');
+
+open_system("foc_system")

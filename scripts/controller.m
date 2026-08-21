@@ -35,8 +35,8 @@ Kt = single(1.5 * pmsm.P * lambda_pm);
 %% Controller Gains Tuning (Single Precision)
 % Current Loop (1000 Hz bandwidth)
 foc.omega_c = single(2*pi * 1000);
-foc.Kp_d = single(pmsm.Lph * foc.omega_c);
-foc.Ki_d = single(pmsm.Rs * foc.omega_c);
+foc.Kp_d = 100;
+foc.Ki_d = 0;
 foc.Kp_q = single(pmsm.Lph * foc.omega_c);
 foc.Ki_q = single(pmsm.Rs * foc.omega_c);
 
