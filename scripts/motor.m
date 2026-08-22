@@ -9,7 +9,7 @@ pmsm.Lph      = 0.393e-3;   % Phase inductance [H]
 pmsm.Ke_data  = 0.296;      % BEMF constant [Vrms_LL/(rad/s)]
 pmsm.J        = 0.33e-3;    % Rotor inertia [kg*m^2]
 pmsm.V_rated  = 600;
-pmsm.I_rated  = 50.0;
+pmsm.I_rated  = 86.0;
 
 %% Derived parameters
 
