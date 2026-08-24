@@ -1,0 +1,7 @@
+-IC:/Users/probst/Desktop/stugverter/simulink
+-IC:/Users/probst/Desktop/stugverter/simulink/foc_controller_ert_rtw
+-I"C:/Program Files/MATLAB/R2026a/extern/include"
+-I"C:/Program Files/MATLAB/R2026a/simulink/include"
+-I"C:/Program Files/MATLAB/R2026a/rtw/c/src"
+-I"C:/Program Files/MATLAB/R2026a/rtw/c/src/ext_mode/common"
+-I"C:/Program Files/MATLAB/R2026a/rtw/c/ert"
