@@ -16,10 +16,15 @@ run('motor.m');
 run('controller.m');
 
 %% Default Speed Reference Profile for Testing (RPM)
-% Multi-regime profile:
+% Multi-regime ramp profile:
 %   0 -> 8,000 RPM (MTPA regime)
-%   8,000 -> 18,000 RPM (Field Weakening regime above base speed)
-%   18,000 -> 6,000 RPM (Deceleration back to MTPA regime)
-t_prof   = [0,   0.10, 0.10];
-spd_prof = [0    0   , 18000];
+%   8,000 -> 18,000 RPM (field weakening above base speed)
+%   18,000 -> 6,000 RPM (deceleration back to MTPA regime)
+%
+% Avoid a discontinuous speed step here. A hard step instantly saturates the
+% speed PI, hides current-loop tuning issues, and can make field weakening
+% request negative d-axis current before the rotor has accelerated.
+foc.simStopTime = 0.80;
+t_prof   = [0, 0.05, 0.25, 0.45, 0.60, 0.80];
+spd_prof = [0, 0,    8000, 18000, 18000, 6000];
 sp_ts = timeseries(spd_prof, t_prof);
