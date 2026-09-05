@@ -1,11 +1,11 @@
 %% controller.m
-% Field Oriented Control (FOC) parameters and bus definitions
+% Field Oriented Control (FOC) parameters, gain tuning, and bus definitions
 
 %% Controller Timing
-foc.Ts = 1/20e3;  % 20 kHz current control loop
+foc.Ts = 1/20e3;  % 20 kHz current control loop sample period (50 us)
 
-%% Measurement Bus Definition (Single Precision)
-clear measurement;
+%% Measurement Bus Definition
+clear measurement elems;
 elems(1) = Simulink.BusElement;
 elems(1).Name = 'MtrPos';
 elems(1).Dimensions = 1;
@@ -26,22 +26,27 @@ elems(3).Description = 'Rotor mechanical speed [rad/s]';
 
 measurement = Simulink.Bus;
 measurement.Elements = elems;
-measurement.Description = 'Plant measurement bus (single precision)';
+measurement.Description = 'Plant measurement bus';
 
 %% Motor & Inverter Parameters
-lambda_pm = 0.2205;
-Kt = single(1.5 * pmsm.P * lambda_pm);
+lambda_pm = single(pmsm.fl);
+Kt = single(1.5 * pmsm.P * lambda_pm); % Fundamental torque constant [Nm/A_peak]
 
-%% Controller Gains Tuning (Single Precision)
-% Current Loop (1000 Hz bandwidth)
-foc.omega_c = single(2*pi * 1000);
-foc.Kp_d = 100;
-foc.Ki_d = 0;
-foc.Kp_q = single(pmsm.Lph * foc.omega_c);
+%% Current Controller Gains Tuning (Saliency-aware: Ld != Lq)
+% Current loop bandwidth
+foc.omega_c = single(2*pi * 800); % 800 Hz bandwidth
+
+% Direct-axis (d-axis) PI gains
+foc.Kp_d = single(pmsm.Ld * foc.omega_c);
+foc.Ki_d = single(pmsm.Rs * foc.omega_c);
+
+% Quadrature-axis (q-axis) PI gains
+foc.Kp_q = single(pmsm.Lq * foc.omega_c);
 foc.Ki_q = single(pmsm.Rs * foc.omega_c);
 
-% Speed Loop (8 Hz natural frequency, zeta = 1.5 for overdamped tracking)
-foc.wn_s = single(2*pi * 8);
-foc.zeta_s = single(1.5);
-foc.Kp_spd = single(2 * foc.zeta_s * foc.wn_s * pmsm.J / Kt);
-foc.Ki_spd = single(pmsm.J * foc.wn_s^2 / Kt);
+%% Speed Controller Gains Tuning (Direct Torque Reference Output)
+% Speed loop closed-loop transfer function: (Kp*s + Ki) / (J*s^2 + Kp*s + Ki)
+foc.wn_s   = single(2*pi * 20); % 20 Hz natural frequency
+foc.zeta_s = single(1.0);       % Critically damped (zeta = 1.0)
+foc.Kp_spd = single(2 * foc.zeta_s * foc.wn_s * pmsm.J); % [Nm / (rad/s)]
+foc.Ki_spd = single(pmsm.J * foc.wn_s^2);                % [Nm / rad]
