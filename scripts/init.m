@@ -26,5 +26,12 @@ run('controller.m');
 % request negative d-axis current before the rotor has accelerated.
 foc.simStopTime = 0.80;
 t_prof   = [0, 0.05, 0.25, 0.45, 0.60, 0.80];
-spd_prof = [0, 0,    8000, 18000, 18000, 6000];
+spd_prof = single([0, 0,    8000, 18000, 18000, 6000]);
 sp_ts = timeseries(spd_prof, t_prof);
+
+%% Export all variables to base workspace for Simulink model evaluation
+varList = who;
+for k = 1:length(varList)
+    assignin('base', varList{k}, eval(varList{k}));
+end
+
