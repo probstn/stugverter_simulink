@@ -25,6 +25,11 @@ helpsearch*/
 slprj/
 sccprj/
 codegen/
+*_ert_rtw/
+
+# OS metadata files
+.DS_Store
+Thumbs.db
 
 # Cache files
 *.slxc
