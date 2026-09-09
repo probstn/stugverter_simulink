@@ -30,6 +30,10 @@ else
     end
 end
 
+if ~exist(fullfile(simulinkDir, 'scripts', 'init.m'), 'file')
+    simulinkDir = fileparts(fileparts(mfilename('fullpath')));
+end
+
 projectRoot = fileparts(simulinkDir);
 firmwareDir = fullfile(projectRoot, 'firmware');
 buildPy     = fullfile(firmwareDir, 'build.py');
@@ -97,7 +101,9 @@ if flashStatus ~= 0
     warning('winIDEA flash operation reported an error. Please ensure winIDEA is open and connected to the AURIX TC387 target.');
 else
     fprintf('%s\n', flashOut);
+    addpath(fullfile(simulinkDir, 'scripts'));
+    wait_for_xcp('192.168.0.10', 5555, '192.168.0.100', 15);
     fprintf('================================================================\n');
-    fprintf(' Target AURIX TC387 flashed and executing in real-time!\n');
+    fprintf(' Target AURIX TC387 flashed; Ethernet and XCP are ready!\n');
     fprintf('================================================================\n\n');
 end

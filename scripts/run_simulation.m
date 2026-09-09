@@ -2,7 +2,7 @@
 % =========================================================================
 % STUGVERTER SIL SIMULATION & RESULT INSPECTION
 % =========================================================================
-% Runs pure software-in-the-loop (SIL) simulation of stugverter.slx,
+% Runs pure software-in-the-loop (SIL) simulation of stugverter_sil.slx,
 % opens live scopes before simulation starts, verifies motor control
 % performance (MTPA + Field Weakening), and displays interactive results
 % including time-domain tracking and the id vs. iq vector plane.
@@ -10,7 +10,7 @@
 warning('off', 'Simulink:Engine:MdlFileShadowedByFile');
 
 fprintf('\n================================================================\n');
-fprintf(' [SIMULATION] Running Pure SIL Simulation (stugverter.slx)...\n');
+fprintf(' [SIMULATION] Running Pure SIL Simulation (stugverter_sil.slx)...\n');
 fprintf('================================================================\n');
 
 % 1. Setup paths
@@ -34,13 +34,17 @@ else
     end
 end
 
+if ~exist(fullfile(simulinkDir, 'scripts', 'init.m'), 'file')
+    simulinkDir = fileparts(fileparts(mfilename('fullpath')));
+end
+
 scriptsDir = fullfile(simulinkDir, 'scripts');
 modelsDir  = fullfile(simulinkDir, 'models');
 if isfolder(scriptsDir), addpath(scriptsDir); end
 if isfolder(modelsDir),  addpath(modelsDir);  end
 
 % 2. Ensure workspace variables and model are loaded
-modelName = 'stugverter';
+modelName = 'stugverter_sil';
 if ~exist('foc', 'var') || ~isfield(foc, 'simStopTime')
     if evalin('base', 'exist(''foc'', ''var'')')
         foc = evalin('base', 'foc');
@@ -54,14 +58,10 @@ if ~bdIsLoaded(modelName)
     load_system(fullfile(modelsDir, [modelName '.slx']));
 end
 
-% Ensure HIL_Switch is set to SIL mode ('1' = simulated algorithm)
-set_param('stugverter/Processor/HIL_Switch', 'sw', '1');
-set_param(modelName, 'StopTime', num2str(foc.simStopTime));
-
 % 3. Open Live Speed Scope BEFORE starting simulation
 fprintf('Opening live rotor speed tracking scope...\n');
 try
-    open_system('stugverter/Processor/Scope_Speed');
+    open_system([modelName '/Processor/Scope_Speed']);
     drawnow;
 catch
 end
@@ -69,7 +69,10 @@ end
 % 4. Run simulation
 fprintf('Simulating %s for StopTime = %.2f s...\n', modelName, foc.simStopTime);
 tic;
-simOut = sim(modelName);
+simIn = Simulink.SimulationInput(modelName);
+simIn = setModelParameter(simIn, 'StopTime', num2str(foc.simStopTime), ...
+    'EnablePacing', 'off');
+simOut = sim(simIn);
 elapsed = toc;
 fprintf('Simulation completed in %.2f s.\n', elapsed);
 

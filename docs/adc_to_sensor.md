@@ -1,7 +1,7 @@
 # ADC measurements in algorithm.slx
 
 `algorithm/adc_to_sensor` uses native Simulink blocks only. It is inside the
-algorithm model referenced by `stugverter/Processor/Model`, so conversion and
+algorithm model referenced by `stugverter_sil/Processor/Model`, so conversion and
 speed-estimator state are included when generating code from `algorithm.slx`.
 
 The existing input interface is an `adc_values` bus containing five `uint16`
@@ -22,7 +22,7 @@ The output remains the single-precision `algo_measurement` bus: `MtrPos` [rad],
 `currents` [A, three elements], and `speed` [rad/s]. All estimator delays run at
 `foc.Ts` (50 microseconds by default).
 
-Calibration remains in `scripts/controller.m`: `sensor.ADC_mid`,
+Calibration remains in `scripts/controller_params.m`: `sensor.ADC_mid`,
 `sensor.ADC_span`, and `sensor.I_max`. With the existing calibration, count 2048
 means zero current and count 4095 means +120 A. Count 0 is slightly below -120 A
 because the negative ADC range contains one extra count.
@@ -30,7 +30,7 @@ because the negative ADC range contains one extra count.
 Assumptions: SIN/COS are matched, centered signals representing one mechanical
 revolution; valid ADC values are 0–4095; motion is less than pi radians per
 sample. Sensor fault detection is not implemented. The simulation's ADC
-emulation remains in `stugverter`; it is not part of the algorithm deployment.
+emulation remains in `stugverter_sil`; it is not part of the algorithm deployment.
 
 ## Reproduce validation
 
@@ -66,7 +66,7 @@ supported; target-specific AURIX compilation and deployment are separate checks.
 - Maximum filtered speed error: approximately 0.0012 rad/s.
 - Nonzero stationary startup: zero speed throughout the first 1,000 samples.
 - Forward/reverse steady speed checks: +1800 / -1800 rad/s passed.
-- Existing 0.8 s `stugverter` acceptance checks passed; peak speed 18169.4 RPM,
+- Existing 0.8 s `stugverter_sil` acceptance checks passed; peak speed 18169.4 RPM,
   final speed 6001.3 RPM against a 6000 RPM reference.
 - `algorithm.slx` standalone C generation passed with the saved configuration.
 - Standalone host compilation passed with SIMD disabled temporarily.

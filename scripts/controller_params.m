@@ -1,4 +1,4 @@
-%% controller.m
+%% controller_params.m
 % Field Oriented Control (FOC) parameters, gain tuning, and bus definitions
 
 %% Controller Timing

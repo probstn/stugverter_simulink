@@ -31,6 +31,10 @@ else
     end
 end
 
+if ~exist(fullfile(simulinkDir, 'scripts', 'init.m'), 'file')
+    simulinkDir = fileparts(fileparts(mfilename('fullpath')));
+end
+
 projectRoot = fileparts(simulinkDir);
 scriptsDir  = fullfile(simulinkDir, 'scripts');
 modelsDir   = fullfile(simulinkDir, 'models');
@@ -41,7 +45,7 @@ if isfolder(modelsDir),  addpath(modelsDir);  end
 % Suppress shadowing warning
 warning('off', 'Simulink:Engine:MdlFileShadowedByFile');
 
-modelName = 'stugverter';
+modelName = 'stugverter_hil';
 if ~exist('foc', 'var') || ~isfield(foc, 'simStopTime')
     if evalin('base', 'exist(''foc'', ''var'')')
         foc = evalin('base', 'foc');
@@ -92,19 +96,20 @@ if fid ~= -1
     end
 end
 
+% Wait for the real XCP endpoint, not merely for the CPU to be running.
+% This warms ARP and proves that lwIP/XCP initialization has completed.
+wait_for_xcp('192.168.0.10', 5555, '192.168.0.100', 15);
+
 % 2. Configure Model for HIL Execution
 fprintf('Configuring %s for HIL operation...\n', modelName);
-set_param('stugverter/Processor/HIL_Switch', 'sw', '0'); % 0 = HIL (AURIX TC387 over XCP UDP)
 % The Windows XCP master, Ethernet target, and Simscape plant run slower than
 % wall-clock real time on this host. Pacing keeps the exchange orderly while
 % preserving the controller's 50 us simulated sample time.
-set_param(modelName, 'EnablePacing', 'on', 'PacingRate', foc.hilPacingRate);
-set_param(modelName, 'StopTime', num2str(foc.simStopTime));
 
 % 3. Open Live Speed Scope BEFORE starting simulation
 fprintf('Opening live rotor speed tracking scope...\n');
 try
-    open_system('stugverter/Processor/Scope_Speed');
+    open_system([modelName '/Processor/Scope_Speed']);
     drawnow;
 catch
 end
@@ -112,7 +117,10 @@ end
 % 4. Run HIL Simulation
 fprintf('Simulating %s for StopTime = %.2f s (Real-Time Paced)...\n', modelName, foc.simStopTime);
 tic;
-simOut = sim(modelName);
+simIn = Simulink.SimulationInput(modelName);
+simIn = setModelParameter(simIn, 'StopTime', num2str(foc.simStopTime), ...
+    'EnablePacing', 'on', 'PacingRate', num2str(foc.hilPacingRate));
+simOut = sim(simIn);
 hilElapsed = toc;
 fprintf('HIL simulation completed in %.2f s.\n', hilElapsed);
 

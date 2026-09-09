@@ -1,4 +1,4 @@
-%% motor.m
+%% motor_params.m
 % Fischer TI085-052-070-04B7S-07S04BE2 Interior Permanent Magnet Synchronous Motor (IPMSM)
 
 %% Datasheet / Motor Parameters

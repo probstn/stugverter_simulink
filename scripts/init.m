@@ -1,26 +1,8 @@
 %% init.m
 % Master initialization script for IPMSM FOC Simulation (MTPA + Field Weakening)
 
-%% Clean workspace paths
-if exist('resolve_simulink_dir', 'file') == 2
-    rootDir = resolve_simulink_dir();
-else
-    try
-        proj = currentProject;
-        rootDir = proj.RootFolder;
-    catch
-        candidates = {pwd, fullfile(pwd, 'simulink'), fileparts(pwd), ...
-                      fullfile(fileparts(pwd), 'simulink'), ...
-                      'C:\Users\probst\Desktop\stugverter\simulink'};
-        rootDir = pwd;
-        for k = 1:length(candidates)
-            if exist(fullfile(candidates{k}, 'scripts', 'motor.m'), 'file')
-                rootDir = candidates{k};
-                break;
-            end
-        end
-    end
-end
+%% Resolve relative to this script (independent of MATLAB's current folder).
+rootDir = fileparts(fileparts(mfilename('fullpath')));
 
 scriptsDir = fullfile(rootDir, 'scripts');
 modelsDir  = fullfile(rootDir, 'models');
@@ -28,10 +10,10 @@ if isfolder(scriptsDir), addpath(scriptsDir); end
 if isfolder(modelsDir),  addpath(modelsDir);  end
 
 %% Load PMSM parameters (IPMSM with Ld != Lq)
-run(fullfile(scriptsDir, 'motor.m'));
+run(fullfile(scriptsDir, 'motor_params.m'));
 
 %% Load Controller parameters, gain tuning, and bus objects
-run(fullfile(scriptsDir, 'controller.m'));
+run(fullfile(scriptsDir, 'controller_params.m'));
 
 %% Default Speed Reference Profile for Testing (RPM)
 % Multi-regime ramp profile:

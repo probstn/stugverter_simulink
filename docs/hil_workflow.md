@@ -10,7 +10,15 @@ The target receive path places complete STIM samples in a 256-entry cross-core
 FIFO. Core 0 drains short bursts without skipping algorithm steps. A delayed
 packet holds the previous PWM output; it never resets controller state.
 
-Use the sections in `stugverter.m` in order:
+Use the sections in `main.m` in order. The entry models have distinct roles:
+
+- `stugverter_sil.slx`: `plant.slx` plus the referenced `algorithm.slx`; no XCP.
+- `stugverter_hil.slx`: `plant.slx` plus the TC387 over XCP STIM/DAQ.
+- `stugverter_hw.slx`: read-only XCP DAQ monitor; no plant and no STIM.
+
+All models save with pacing disabled. `run_hil.m` and `run_hardware.m` enable
+pacing only on their `SimulationInput`, so running SIL is never slowed by a
+setting left behind by HIL.
 
 1. Run SIL.
 2. Generate Embedded Coder output.
