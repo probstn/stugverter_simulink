@@ -13,6 +13,17 @@ if isfolder(modelsDir),  addpath(modelsDir);  end
 run(fullfile(scriptsDir, 'motor_params.m'));
 
 %% Load Controller parameters, gain tuning, and bus objects
+% Preserve tunable commissioning commands across model InitFcn callbacks.
+commandNames = {'control_mode_request', 'control_enable_request', ...
+    'control_fault_reset', 'torque_ref_nm', 'open_loop_electrical_hz', ...
+    'open_loop_modulation', 'calibration_modulation', 'resolver_angle_offset', ...
+    'simulation_mode', 'hil_control_mode_request'};
+for commandIndex = 1:numel(commandNames)
+    commandName = commandNames{commandIndex};
+    if evalin('base', sprintf('exist(''%s'', ''var'')', commandName))
+        eval([commandName ' = evalin(''base'', commandName);']);
+    end
+end
 run(fullfile(scriptsDir, 'controller_params.m'));
 
 %% Default Speed Reference Profile for Testing (RPM)

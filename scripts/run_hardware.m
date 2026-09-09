@@ -7,7 +7,7 @@ modelsDir = fullfile(simulinkDir, 'models');
 addpath(fullfile(simulinkDir, 'scripts'), modelsDir);
 run(fullfile(simulinkDir, 'scripts', 'init.m'));
 
-modelName = 'stugverter_hw';
+modelName = 'stugverter_monitor';
 wait_for_xcp('192.168.0.10', 5555, '192.168.0.100', 15);
 load_system(fullfile(modelsDir, [modelName '.slx']));
 open_system([modelName '/Hardware Monitor']);

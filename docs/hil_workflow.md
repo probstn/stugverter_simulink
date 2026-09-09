@@ -12,9 +12,9 @@ packet holds the previous PWM output; it never resets controller state.
 
 Use the sections in `main.m` in order. The entry models have distinct roles:
 
-- `stugverter_sil.slx`: `plant.slx` plus the referenced `algorithm.slx`; no XCP.
-- `stugverter_hil.slx`: `plant.slx` plus the TC387 over XCP STIM/DAQ.
-- `stugverter_hw.slx`: read-only XCP DAQ monitor; no plant and no STIM.
+- `stugverter_sim.slx`: one simulated plant with exclusive SIL and TC387/XCP
+  controller variants selected by `simulation_mode`.
+- `stugverter_monitor.slx`: read-only XCP DAQ monitor; no plant and no STIM.
 
 All models save with pacing disabled. `run_hil.m` and `run_hardware.m` enable
 pacing only on their `SimulationInput`, so running SIL is never slowed by a

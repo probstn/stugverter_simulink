@@ -2,7 +2,7 @@
 % =========================================================================
 % STUGVERTER SIL SIMULATION & RESULT INSPECTION
 % =========================================================================
-% Runs pure software-in-the-loop (SIL) simulation of stugverter_sil.slx,
+% Runs the SIL controller variant in stugverter_sim.slx.
 % opens live scopes before simulation starts, verifies motor control
 % performance (MTPA + Field Weakening), and displays interactive results
 % including time-domain tracking and the id vs. iq vector plane.
@@ -10,7 +10,7 @@
 warning('off', 'Simulink:Engine:MdlFileShadowedByFile');
 
 fprintf('\n================================================================\n');
-fprintf(' [SIMULATION] Running Pure SIL Simulation (stugverter_sil.slx)...\n');
+fprintf(' [SIMULATION] Running SIL Variant (stugverter_sim.slx)...\n');
 fprintf('================================================================\n');
 
 % 1. Setup paths
@@ -44,7 +44,7 @@ if isfolder(scriptsDir), addpath(scriptsDir); end
 if isfolder(modelsDir),  addpath(modelsDir);  end
 
 % 2. Ensure workspace variables and model are loaded
-modelName = 'stugverter_sil';
+modelName = 'stugverter_sim';
 if ~exist('foc', 'var') || ~isfield(foc, 'simStopTime')
     if evalin('base', 'exist(''foc'', ''var'')')
         foc = evalin('base', 'foc');
@@ -54,6 +54,14 @@ if ~exist('foc', 'var') || ~isfield(foc, 'simStopTime')
     end
 end
 
+% Explicit test command. Production/code-generation defaults remain OFF.
+control_enable_request.Value = true;
+control_mode_request.Value = uint8(3);
+simulation_mode.Value = uint8(0);
+assignin('base', 'control_enable_request', control_enable_request);
+assignin('base', 'control_mode_request', control_mode_request);
+assignin('base', 'simulation_mode', simulation_mode);
+
 if ~bdIsLoaded(modelName)
     load_system(fullfile(modelsDir, [modelName '.slx']));
 end
@@ -61,7 +69,7 @@ end
 % 3. Open Live Speed Scope BEFORE starting simulation
 fprintf('Opening live rotor speed tracking scope...\n');
 try
-    open_system([modelName '/Processor/Scope_Speed']);
+    open_system([modelName '/Processor/Logging/Speed']);
     drawnow;
 catch
 end

@@ -22,7 +22,7 @@ run(fullfile(simulinkDir, 'scripts', 'deploy_code.m'));
 %% 4. Flash Target MCU (winIDEA)
 run(fullfile(simulinkDir, 'scripts', 'flash_target.m'));
 
-%% 5. HIL Test (stugverter_hil: simulated plant + TC387 algorithm)
+%% 5. HIL Test (stugverter_sim with TC387/XCP controller variant)
 run(fullfile(simulinkDir, 'scripts', 'run_hil.m'));
 
 %% 6. Validate SIL/HIL Equivalence (runs both modes and asserts tolerances)
@@ -30,3 +30,6 @@ run(fullfile(simulinkDir, 'scripts', 'validate_sil_hil.m'));
 
 %% 7. Actual Hardware Monitor (read-only XCP DAQ; no simulated plant/STIM)
 run(fullfile(simulinkDir, 'scripts', 'run_hardware.m'));
+
+%% 8. Demo Supervisor Mode Smoke Tests
+run(fullfile(simulinkDir, 'scripts', 'validate_demo_modes.m'));

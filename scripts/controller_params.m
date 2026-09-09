@@ -8,6 +8,67 @@ foc.hilPacingRate = 0.02;  % Simulated seconds per wall-clock second for reliabl
 foc.V_utilization = 0.92; % Keep PWM headroom for FW/current regulation
 foc.V_phase_max = foc.V_utilization * pmsm.V_rated / sqrt(3);
 
+%% Demo supervisor commands and conservative commissioning limits
+% Modes: 0=OFF, 1=CALIBRATION, 2=OPEN_LOOP, 3=SPEED_FOC, 4=TORQUE_FOC.
+if ~exist('control_mode_request', 'var') || ~isa(control_mode_request, 'Simulink.Parameter')
+    control_mode_request = Simulink.Parameter(uint8(0));
+end
+control_mode_request.DataType = 'uint8';
+control_mode_request.CoderInfo.StorageClass = 'ExportedGlobal';
+if ~exist('control_enable_request', 'var') || ~isa(control_enable_request, 'Simulink.Parameter')
+    control_enable_request = Simulink.Parameter(false);
+end
+control_enable_request.DataType = 'boolean';
+control_enable_request.CoderInfo.StorageClass = 'ExportedGlobal';
+if ~exist('control_fault_reset', 'var') || ~isa(control_fault_reset, 'Simulink.Parameter')
+    control_fault_reset = Simulink.Parameter(false);
+end
+control_fault_reset.DataType = 'boolean';
+control_fault_reset.CoderInfo.StorageClass = 'ExportedGlobal';
+if ~exist('torque_ref_nm', 'var') || ~isa(torque_ref_nm, 'Simulink.Parameter')
+    torque_ref_nm = Simulink.Parameter(single(0));
+end
+torque_ref_nm.DataType = 'single';
+torque_ref_nm.CoderInfo.StorageClass = 'ExportedGlobal';
+if ~exist('open_loop_electrical_hz', 'var') || ~isa(open_loop_electrical_hz, 'Simulink.Parameter')
+    open_loop_electrical_hz = Simulink.Parameter(single(2));
+end
+open_loop_electrical_hz.DataType = 'single';
+open_loop_electrical_hz.CoderInfo.StorageClass = 'ExportedGlobal';
+if ~exist('open_loop_modulation', 'var') || ~isa(open_loop_modulation, 'Simulink.Parameter')
+    open_loop_modulation = Simulink.Parameter(single(0.04));
+end
+open_loop_modulation.DataType = 'single';
+open_loop_modulation.CoderInfo.StorageClass = 'ExportedGlobal';
+if ~exist('calibration_modulation', 'var') || ~isa(calibration_modulation, 'Simulink.Parameter')
+    calibration_modulation = Simulink.Parameter(single(0.025));
+end
+calibration_modulation.DataType = 'single';
+calibration_modulation.CoderInfo.StorageClass = 'ExportedGlobal';
+if ~exist('resolver_angle_offset', 'var') || ~isa(resolver_angle_offset, 'Simulink.Parameter')
+    resolver_angle_offset = Simulink.Parameter(single(0));
+end
+resolver_angle_offset.DataType = 'single';
+resolver_angle_offset.CoderInfo.StorageClass = 'ExportedGlobal';
+
+% Simulation harness variant: 0=SIL controller, 1=TC387/XCP HIL controller.
+% This variable selects a compile-time variant so XCP is not initialized in SIL.
+if ~exist('simulation_mode', 'var') || ~isa(simulation_mode, 'Simulink.Parameter')
+    simulation_mode = Simulink.Parameter(uint8(0));
+end
+simulation_mode.DataType = 'uint8';
+if ~exist('hil_control_mode_request', 'var') || ~isa(hil_control_mode_request, 'Simulink.Parameter')
+    hil_control_mode_request = Simulink.Parameter(uint8(3));
+end
+hil_control_mode_request.DataType = 'uint8';
+
+protection.current_trip_A = single(105);
+protection.overspeed_rads = single(20000 * 2*pi/60);
+protection.resolver_min_amplitude = single(0.35);
+protection.resolver_max_amplitude = single(1.30);
+protection.adc_rail_low = uint16(8);
+protection.adc_rail_high = uint16(4087);
+
 %% Measurement Bus Definitions
 % Plant Measurement Bus (Continuous double for Simscape / physical motor)
 clear plant_measurement plant_elems;

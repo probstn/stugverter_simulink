@@ -45,7 +45,9 @@ if isfolder(modelsDir),  addpath(modelsDir);  end
 % Suppress shadowing warning
 warning('off', 'Simulink:Engine:MdlFileShadowedByFile');
 
-modelName = 'stugverter_hil';
+modelName = 'stugverter_sim';
+if ~exist('hilControlMode', 'var'), hilControlMode = uint8(3); end
+if exist('hilStopTime', 'var'), runStopTime = hilStopTime; else, runStopTime = foc.simStopTime; end
 if ~exist('foc', 'var') || ~isfield(foc, 'simStopTime')
     if evalin('base', 'exist(''foc'', ''var'')')
         foc = evalin('base', 'foc');
@@ -54,6 +56,11 @@ if ~exist('foc', 'var') || ~isfield(foc, 'simStopTime')
         run(fullfile(simulinkDir, 'scripts', 'init.m'));
     end
 end
+
+simulation_mode.Value = uint8(1);
+hil_control_mode_request.Value = uint8(hilControlMode);
+assignin('base', 'simulation_mode', simulation_mode);
+assignin('base', 'hil_control_mode_request', hil_control_mode_request);
 
 if ~bdIsLoaded(modelName)
     load_system(fullfile(modelsDir, [modelName '.slx']));
@@ -77,10 +84,10 @@ pyCheckCode = sprintf([ ...
     '    isr = debug_ctrl.evaluate(ic.IConnectDebug.fMonitor, "g_foc_isr_counter")\n', ...
     '    us = debug_ctrl.evaluate(ic.IConnectDebug.fMonitor, "g_foc_exec_time_us")\n', ...
     '    debug_ctrl.modify(ic.IConnectDebug.fMonitor, "g_hil_mode_enable", "0")\n', ...
-    '    print(f"TARGET_OK: Running={st.isRunning()}, ISR={isr.getInt()}, ExecTime={us.getFloat():.2f}us (HIL reset to 0)")\n', ...
+    '    print(f"TARGET_OK: Running={st.isRunning()}, ISR={isr.getInt()}, ExecTime={us.getFloat():.2f}us (mode %d will be armed by first STIM packet)")\n', ...
     'except Exception as e:\n', ...
     '    print(f"TARGET_CHECK_WARNING: {e}", file=sys.stderr)\n' ...
-]);
+], double(hilControlMode));
 
 pyCheckFile = fullfile(tempdir, 'check_target.py');
 fid = fopen(pyCheckFile, 'w');
@@ -109,16 +116,16 @@ fprintf('Configuring %s for HIL operation...\n', modelName);
 % 3. Open Live Speed Scope BEFORE starting simulation
 fprintf('Opening live rotor speed tracking scope...\n');
 try
-    open_system([modelName '/Processor/Scope_Speed']);
+    open_system([modelName '/Processor/Logging/Speed']);
     drawnow;
 catch
 end
 
 % 4. Run HIL Simulation
-fprintf('Simulating %s for StopTime = %.2f s (Real-Time Paced)...\n', modelName, foc.simStopTime);
+fprintf('Simulating %s for StopTime = %.2f s (Real-Time Paced)...\n', modelName, runStopTime);
 tic;
 simIn = Simulink.SimulationInput(modelName);
-simIn = setModelParameter(simIn, 'StopTime', num2str(foc.simStopTime), ...
+simIn = setModelParameter(simIn, 'StopTime', num2str(runStopTime), ...
     'EnablePacing', 'on', 'PacingRate', num2str(foc.hilPacingRate));
 simOut = sim(simIn);
 hilElapsed = toc;
@@ -126,7 +133,11 @@ fprintf('HIL simulation completed in %.2f s.\n', hilElapsed);
 
 % Set g_hil_mode_enable back to 0 on target after simulation ends
 try
-    pyResetCode = sprintf('import isystem.connect as ic\ncm = ic.ConnectionMgr()\ncm.connectMRU("")\nic.CDebugFacade(cm).modify(ic.IConnectDebug.fMonitor, "g_hil_mode_enable", "0")\n');
+    pyResetCode = sprintf(['import isystem.connect as ic\ncm = ic.ConnectionMgr()\n', ...
+        'cm.connectMRU("")\ndbg = ic.CDebugFacade(cm)\n', ...
+        'dbg.modify(ic.IConnectDebug.fMonitor, "g_hil_mode_enable", "0")\n', ...
+        'dbg.modify(ic.IConnectDebug.fMonitor, "control_enable_request", "0")\n', ...
+        'dbg.modify(ic.IConnectDebug.fMonitor, "control_mode_request", "0")\n']);
     pyResetFile = fullfile(tempdir, 'reset_hil.py');
     fid = fopen(pyResetFile, 'w');
     if fid ~= -1
@@ -158,16 +169,15 @@ else
     end
 end
 
-% Extract explicitly logged parallel SIL/HIL controller outputs.
-try
-    dutySignal = getSignal(logs, 'duty_hil_raw');
+% The centralized duty scope has identical shape in both variants.
+hasDuty = isprop(simOut, 'scope_duty') || isfield(simOut, 'scope_duty');
+if hasDuty && ~isempty(simOut.scope_duty)
+    dutySignal = simOut.scope_duty{1}.Values;
     t_duty = dutySignal.Time;
     duty_hil = dutySignal.Data;
-    duty_sil_parallel = getSignal(logs, 'duty_sil_parallel').Data;
-catch
+else
     t_duty = t_spd;
     duty_hil = repmat([0.5, 0.5, 0.5], length(t_duty), 1);
-    duty_sil_parallel = [];
 end
 
 % Extract ADC signals
@@ -185,71 +195,41 @@ else
     ic_counts = zeros(size(t_adc));
 end
 
-% Extract Hardware Telemetry (ISR count, execution time)
-hasTelem = isprop(simOut, 'scope_hw_telemetry') || isfield(simOut, 'scope_hw_telemetry');
-if hasTelem && ~isempty(simOut.scope_hw_telemetry)
-    t_telem = simOut.scope_hw_telemetry{1}.Values.Time;
-    telemData = simOut.scope_hw_telemetry{1}.Values.Data;
-    isr_counts = telemData(:, 1);
-    exec_times = telemData(:, 2);
-else
-    t_telem = t_spd;
-    isr_counts = zeros(size(t_telem));
-    exec_times = zeros(size(t_telem));
-end
-
 % 5. Print HIL Performance Summary
 max_rpm_meas = max(rpm_meas);
 final_rpm_meas = rpm_meas(end);
 final_rpm_ref = rpm_ref(end);
-avg_exec_us = mean(exec_times(exec_times > 0));
 
 fprintf('\n------------------- HIL PERFORMANCE SUMMARY --------------------\n');
 fprintf('  Max Speed Target:          %10.1f RPM\n', max(rpm_ref));
 fprintf('  Max Speed Reached:         %10.1f RPM\n', max_rpm_meas);
 fprintf('  Final Speed Target:        %10.1f RPM\n', final_rpm_ref);
 fprintf('  Final Speed Reached:       %10.1f RPM (Error: %.2f RPM)\n', final_rpm_meas, abs(final_rpm_meas - final_rpm_ref));
-if ~isnan(avg_exec_us) && avg_exec_us > 0
-    fprintf('  Average AURIX Execution:   %10.2f us (FOC budget: %.1f us)\n', avg_exec_us, foc.Ts*1e6);
-end
-if ~isempty(duty_sil_parallel)
-    bestDutyRms = inf;
-    bestDutyLag = 0;
-    for lag = 0:10
-        dutyError = duty_hil(1+lag:end, :) - duty_sil_parallel(1:end-lag, :);
-        dutyRms = sqrt(mean(dutyError(:).^2));
-        if dutyRms < bestDutyRms
-            bestDutyRms = dutyRms;
-            bestDutyLag = lag;
-        end
-    end
-    fprintf('  SIL/HIL PWM RMS Difference:%10.5f (aligned by %d sample(s))\n', bestDutyRms, bestDutyLag);
-end
 fprintf('----------------------------------------------------------------\n\n');
 
 % 6. Extract Motor dq Currents if available
 hasIdRef = false;
-try
+logNames = logs.getElementNames;
+if all(ismember({'id_actual','iq_actual'}, logNames))
     id_act = getSignal(logs, 'id_actual');
     iq_act = getSignal(logs, 'iq_actual');
     hasIdAct = true;
-    try
+    if all(ismember({'id_ref_effective','iq_ref'}, logNames))
         id_ref_eff = getSignal(logs, 'id_ref_effective');
         iq_ref     = getSignal(logs, 'iq_ref');
         hasIdRef   = true;
-    catch
-        hasIdRef   = false;
     end
-catch
+else
     hasIdAct = false;
 end
 
-% 7. Figure 1: Time-Domain Dynamic Performance & Hardware Telemetry
-fig1 = figure('Name', 'Stugverter HIL Algorithm Verification: Time-Domain & Telemetry', 'NumberTitle', 'off', 'Color', 'w');
-set(fig1, 'Position', [60, 60, 880, 850], 'Visible', 'on');
+% 7. Figure 1: Common SIL/HIL time-domain signals.  Target-only execution
+% diagnostics are intentionally kept in stugverter_monitor.slx.
+fig1 = figure('Name', 'Stugverter HIL Algorithm Verification', 'NumberTitle', 'off', 'Color', 'w');
+set(fig1, 'Position', [60, 60, 880, 700], 'Visible', 'on');
 
 % Panel 1: Speed Tracking
-subplot(3, 1, 1);
+subplot(2, 1, 1);
 plot(t_spd, rpm_ref, 'k--', 'LineWidth', 1.5, 'DisplayName', 'Reference (RPM)');
 hold on;
 plot(t_spd, rpm_meas, 'Color', [0.85, 0.2, 0.1], 'LineWidth', 1.5, 'DisplayName', 'HIL Measured (RPM)');
@@ -261,7 +241,7 @@ ylabel('Speed [RPM]');
 legend('Location', 'best');
 
 % Panel 2: PWM Duty Cycles Received via XCP DAQ
-subplot(3, 1, 2);
+subplot(2, 1, 2);
 plot(t_duty, duty_hil(:, 1), 'r-', 'LineWidth', 1.2, 'DisplayName', 'Duty U (AURIX)');
 hold on;
 plot(t_duty, duty_hil(:, 2), 'g-', 'LineWidth', 1.2, 'DisplayName', 'Duty V (AURIX)');
@@ -271,19 +251,6 @@ title('Inverter Phase Duty Cycles Received from AURIX TC387 (XCP UDP DAQ)');
 xlabel('Time [s]');
 ylabel('Duty [0-1]');
 legend('Location', 'best');
-
-% Panel 3: Hardware Telemetry
-subplot(3, 1, 3);
-yyaxis left;
-plot(t_telem, isr_counts, 'b-', 'LineWidth', 1.2, 'DisplayName', 'FOC ISR Count');
-ylabel('ISR Execution Count');
-yyaxis right;
-plot(t_telem, exec_times, 'm-', 'LineWidth', 1.2, 'DisplayName', 'FOC Core Exec Time [us]');
-ylabel('Exec Time [\mus]');
-yline(foc.Ts*1e6, 'r--', 'DisplayName', sprintf('20 kHz Budget (%.0f us)', foc.Ts*1e6));
-grid on;
-title('Target Telemetry: FOC ISR Counter & Core Execution Time');
-xlabel('Time [s]');
 
 % 8. Figure 2: id vs. iq Vector Plane (MTPA Curve, Limit Curves, and Setpoints)
 if hasIdAct
