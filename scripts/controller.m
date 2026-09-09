@@ -4,6 +4,7 @@
 %% Controller Timing
 foc.Ts = 1/20e3;           % 20 kHz current control loop sample period (50 us)
 foc.Ts_speed = 10*foc.Ts;  % 2 kHz speed control sample period
+foc.hilPacingRate = 0.02;  % Simulated seconds per wall-clock second for reliable XCP HIL
 foc.V_utilization = 0.92; % Keep PWM headroom for FW/current regulation
 foc.V_phase_max = foc.V_utilization * pmsm.V_rated / sqrt(3);
 
