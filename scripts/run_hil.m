@@ -40,14 +40,11 @@ scriptsDir  = fullfile(simulinkDir, 'scripts');
 modelsDir   = fullfile(simulinkDir, 'models');
 
 if isfolder(scriptsDir), addpath(scriptsDir); end
-if isfolder(modelsDir),  addpath(modelsDir);  end
-
 % Suppress shadowing warning
 warning('off', 'Simulink:Engine:MdlFileShadowedByFile');
 
 modelName = 'stugverter_sim';
-if ~exist('hilControlMode', 'var'), hilControlMode = uint8(3); end
-if exist('hilStopTime', 'var'), runStopTime = hilStopTime; else, runStopTime = foc.simStopTime; end
+% Modes: 1=TORQUE, 2=SPEED, 3=OPEN LOOP.
 if ~exist('foc', 'var') || ~isfield(foc, 'simStopTime')
     if evalin('base', 'exist(''foc'', ''var'')')
         foc = evalin('base', 'foc');
@@ -56,6 +53,8 @@ if ~exist('foc', 'var') || ~isfield(foc, 'simStopTime')
         run(fullfile(simulinkDir, 'scripts', 'init.m'));
     end
 end
+if ~exist('hilControlMode', 'var'), hilControlMode = uint8(2); end
+if exist('hilStopTime', 'var'), runStopTime = hilStopTime; else, runStopTime = foc.simStopTime; end
 
 simulation_mode.Value = uint8(1);
 hil_control_mode_request.Value = uint8(hilControlMode);

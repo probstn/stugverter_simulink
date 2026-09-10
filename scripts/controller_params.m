@@ -8,8 +8,10 @@ foc.hilPacingRate = 0.02;  % Simulated seconds per wall-clock second for reliabl
 foc.V_utilization = 0.92; % Keep PWM headroom for FW/current regulation
 foc.V_phase_max = foc.V_utilization * pmsm.V_rated / sqrt(3);
 
-%% Demo supervisor commands and conservative commissioning limits
-% Modes: 0=OFF, 1=CALIBRATION, 2=OPEN_LOOP, 3=SPEED_FOC, 4=TORQUE_FOC.
+%% Supervisor commands and conservative commissioning limits
+% Operating modes: 0=OFF, 1=TORQUE, 2=SPEED, 3=OPEN_LOOP.
+% Calibration is a separate request because it is a procedure, not a mode:
+% 0=NONE, 1=CURRENT_ZERO, 2=RESOLVER_ZERO, 3=FULL.
 if ~exist('control_mode_request', 'var') || ~isa(control_mode_request, 'Simulink.Parameter')
     control_mode_request = Simulink.Parameter(uint8(0));
 end
@@ -25,6 +27,11 @@ if ~exist('control_fault_reset', 'var') || ~isa(control_fault_reset, 'Simulink.P
 end
 control_fault_reset.DataType = 'boolean';
 control_fault_reset.CoderInfo.StorageClass = 'ExportedGlobal';
+if ~exist('calibration_request', 'var') || ~isa(calibration_request, 'Simulink.Parameter')
+    calibration_request = Simulink.Parameter(uint8(0));
+end
+calibration_request.DataType = 'uint8';
+calibration_request.CoderInfo.StorageClass = 'ExportedGlobal';
 if ~exist('torque_ref_nm', 'var') || ~isa(torque_ref_nm, 'Simulink.Parameter')
     torque_ref_nm = Simulink.Parameter(single(0));
 end
@@ -36,12 +43,14 @@ end
 open_loop_electrical_hz.DataType = 'single';
 open_loop_electrical_hz.CoderInfo.StorageClass = 'ExportedGlobal';
 if ~exist('open_loop_modulation', 'var') || ~isa(open_loop_modulation, 'Simulink.Parameter')
-    open_loop_modulation = Simulink.Parameter(single(0.04));
+    open_loop_modulation = Simulink.Parameter(single(0.025));
 end
 open_loop_modulation.DataType = 'single';
 open_loop_modulation.CoderInfo.StorageClass = 'ExportedGlobal';
 if ~exist('calibration_modulation', 'var') || ~isa(calibration_modulation, 'Simulink.Parameter')
-    calibration_modulation = Simulink.Parameter(single(0.025));
+    % About 1.8 V phase excitation on the 600 V bus: enough to align the
+    % rotor without driving the 0.126 ohm winding into overcurrent.
+    calibration_modulation = Simulink.Parameter(single(0.003));
 end
 calibration_modulation.DataType = 'single';
 calibration_modulation.CoderInfo.StorageClass = 'ExportedGlobal';
@@ -50,6 +59,27 @@ if ~exist('resolver_angle_offset', 'var') || ~isa(resolver_angle_offset, 'Simuli
 end
 resolver_angle_offset.DataType = 'single';
 resolver_angle_offset.CoderInfo.StorageClass = 'ExportedGlobal';
+if ~exist('current_offset_counts', 'var') || ~isa(current_offset_counts, 'Simulink.Parameter')
+    current_offset_counts = Simulink.Parameter(single([2048; 2048; 2048]));
+end
+current_offset_counts.DataType = 'single';
+current_offset_counts.CoderInfo.StorageClass = 'ExportedGlobal';
+if ~exist('has_stored_resolver_offset', 'var') || ~isa(has_stored_resolver_offset, 'Simulink.Parameter')
+    has_stored_resolver_offset = Simulink.Parameter(true);
+end
+has_stored_resolver_offset.DataType = 'boolean';
+has_stored_resolver_offset.CoderInfo.StorageClass = 'ExportedGlobal';
+
+% Runtime calibration results are exported so commissioning tools can read
+% them and copy the accepted values back into the initial parameters above.
+resolver_offset_runtime = Simulink.Signal;
+resolver_offset_runtime.DataType = 'single';
+resolver_offset_runtime.Dimensions = 1;
+resolver_offset_runtime.CoderInfo.StorageClass = 'ExportedGlobal';
+current_offsets_runtime = Simulink.Signal;
+current_offsets_runtime.DataType = 'single';
+current_offsets_runtime.Dimensions = 3;
+current_offsets_runtime.CoderInfo.StorageClass = 'ExportedGlobal';
 
 % Simulation harness variant: 0=SIL controller, 1=TC387/XCP HIL controller.
 % This variable selects a compile-time variant so XCP is not initialized in SIL.
@@ -58,13 +88,13 @@ if ~exist('simulation_mode', 'var') || ~isa(simulation_mode, 'Simulink.Parameter
 end
 simulation_mode.DataType = 'uint8';
 if ~exist('hil_control_mode_request', 'var') || ~isa(hil_control_mode_request, 'Simulink.Parameter')
-    hil_control_mode_request = Simulink.Parameter(uint8(3));
+    hil_control_mode_request = Simulink.Parameter(uint8(2));
 end
 hil_control_mode_request.DataType = 'uint8';
 
 protection.current_trip_A = single(105);
 protection.overspeed_rads = single(20000 * 2*pi/60);
-protection.resolver_min_amplitude = single(0.35);
+protection.resolver_min_amplitude = single(0.10);
 protection.resolver_max_amplitude = single(1.30);
 protection.adc_rail_low = uint16(8);
 protection.adc_rail_high = uint16(4087);

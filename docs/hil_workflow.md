@@ -31,13 +31,12 @@ The validation compares physical plant speed on a common 50-microsecond grid.
 It fails if RMSE exceeds 10 RPM, maximum pointwise error exceeds 25 RPM, or the
 final-speed difference exceeds 10 RPM.
 
-## Validated result (2026-09-09)
+## Validated result (2026-09-10)
 
-- Speed RMSE: 0.572 RPM
-- Maximum pointwise speed difference: 1.932 RPM
-- Peak-speed difference: 0.316 RPM
-- Final-speed difference: -0.364 RPM
-- AURIX controller execution: 0.90 microseconds average versus 50 microseconds available
-- SIL/HIL PWM RMS difference: 0.01927 after one-sample alignment
-- XCP transmit errors: 0
-- HIL FIFO overruns: 0
+- Speed RMSE: 0.521 RPM
+- Maximum pointwise speed difference: 1.840 RPM
+- Peak-speed difference: 0.072 RPM
+- Final-speed difference: -1.289 RPM
+- AURIX controller execution: 1.96 microseconds observed versus 50 microseconds available
+The corresponding controller image was rebuilt, flashed, and verified to boot
+with neutral PWM duty, disabled gate drivers, and a cleared enable request.

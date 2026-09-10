@@ -56,10 +56,13 @@ end
 
 % Explicit test command. Production/code-generation defaults remain OFF.
 control_enable_request.Value = true;
-control_mode_request.Value = uint8(3);
+% Default demo uses SPEED mode. Modes: 1=TORQUE, 2=SPEED, 3=OPEN LOOP.
+control_mode_request.Value = uint8(2);
+calibration_request.Value = uint8(0);
 simulation_mode.Value = uint8(0);
 assignin('base', 'control_enable_request', control_enable_request);
 assignin('base', 'control_mode_request', control_mode_request);
+assignin('base', 'calibration_request', calibration_request);
 assignin('base', 'simulation_mode', simulation_mode);
 
 if ~bdIsLoaded(modelName)
