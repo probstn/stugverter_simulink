@@ -1,4 +1,4 @@
-%% run_hil.m
+%% step6_run_hil.m
 % =========================================================================
 % HARDWARE-IN-THE-LOOP (HIL) SIMULATION SCRIPT
 % =========================================================================
@@ -331,3 +331,9 @@ end
 
 drawnow;
 fprintf('[+] HIL verification plots and scopes opened directly for investigation.\n');
+
+% Save HIL results for standalone comparison step
+hilDataFile = fullfile(simulinkDir, 'hil_results.mat');
+save(hilDataFile, 'simOut', 'rpm_ref', 'rpm_meas', 't_spd', 'duty_hil', 't_duty');
+assignin('base', 'hilOut', simOut);
+fprintf('[+] HIL results saved to: %s (hilOut assigned to workspace)\n', hilDataFile);

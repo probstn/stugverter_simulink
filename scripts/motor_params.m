@@ -19,7 +19,7 @@ pmsm.fl       = 0.0604;     % PM flux linkage [Wb]
 pmsm.Ke       = pmsm.Ke_data * sqrt(2) * (1000 * 2*pi/60);
 
 % Datasheet limits are retained for reference. The active values below are
-% deliberately reduced for the 40 V / 1 A commissioning supply.
+% deliberately reduced for the 20 V / 1 A commissioning supply.
 pmsm.V_datasheet = 600;
 pmsm.I_datasheet = 86.0;
 pmsm.T_peak_datasheet = 29.1;
@@ -27,12 +27,12 @@ pmsm.N_base_datasheet = 9500;
 pmsm.N_max_datasheet = 20000;
 
 % Active low-energy commissioning limits (must remain below the PSU limits).
-pmsm.V_rated  = 40;         % Fixed assumed DC bus voltage [V] (no sensor yet)
+pmsm.V_rated  = 20;         % Fixed assumed DC bus voltage [V] (no sensor yet)
 pmsm.I_rated  = 0.80;       % Peak phase-current command limit [A]
-pmsm.T_peak   = 0.25;       % Torque command limit [Nm], below 0.8 A equivalent
+pmsm.T_peak   = 0.15;       % Low-energy torque command ceiling [Nm]
 pmsm.T_rated  = 11.1;       % Nominal continuous torque [Nm]
-pmsm.N_base   = 600;        % Conservative 40 V commissioning base speed [rpm]
-pmsm.N_max    = 800;        % Commissioning speed ceiling [rpm]
+pmsm.N_base   = 300;        % Conservative 20 V commissioning base speed [rpm]
+pmsm.N_max    = 400;        % Commissioning speed ceiling [rpm]
 
 % Mechanical Parameters: [Inertia (kg*m^2), Viscous Damping (Nm/(rad/s)), Static Friction (Nm)]
 pmsm.J        = 0.33e-3;    % Rotor inertia [kg*m^2]

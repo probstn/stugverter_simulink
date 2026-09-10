@@ -1,9 +1,16 @@
-"""Wait until the TC387 XCP-on-UDP endpoint is genuinely ready."""
+"""Wait for an ASAM XCP-on-Ethernet target and disconnect cleanly."""
+
+from __future__ import annotations
+
 import argparse
 import socket
 import struct
-import sys
 import time
+
+
+def packet(counter: int, payload: bytes) -> bytes:
+    return struct.pack("<HH", len(payload), counter & 0xFFFF) + payload
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -12,31 +19,30 @@ def main() -> int:
     parser.add_argument("--local", default="192.168.0.100")
     parser.add_argument("--timeout", type=float, default=15.0)
     args = parser.parse_args()
+
     started = time.monotonic()
-    last_error = "no valid XCP CONNECT response"
-    print(f"Waiting for XCP UDP at {args.target}:{args.port} ...")
-    while time.monotonic() - started < args.timeout:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            sock.bind((args.local, 0))
-            sock.settimeout(0.25)
-            sock.sendto(struct.pack("<HHBB", 2, 0, 0xFF, 0),
-                        (args.target, args.port))
-            response, _ = sock.recvfrom(2048)
+    connect = packet(0, bytes((0xFF, 0x00)))
+    disconnect = packet(1, bytes((0xFE,)))
+
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as channel:
+        channel.bind((args.local, 0))
+        channel.settimeout(0.25)
+        while time.monotonic() - started < args.timeout:
+            channel.sendto(connect, (args.target, args.port))
+            try:
+                response, _ = channel.recvfrom(2048)
+            except TimeoutError:
+                continue
             if len(response) >= 5 and response[4] == 0xFF:
-                sock.sendto(struct.pack("<HHB", 1, 1, 0xFE),
-                            (args.target, args.port))
                 elapsed = time.monotonic() - started
+                channel.sendto(disconnect, (args.target, args.port))
                 print(f"[+] XCP ready after {elapsed:.3f} s.")
                 print(f"XCP_READY_SECONDS={elapsed:.3f}")
                 return 0
-        except OSError as exc:
-            last_error = str(exc)
-        finally:
-            sock.close()
-        time.sleep(0.1)
-    print(f"[!] XCP not ready after {args.timeout:.1f} s: {last_error}", file=sys.stderr)
+
+    print(f"XCP target {args.target}:{args.port} did not answer within {args.timeout:.1f} s.")
     return 1
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

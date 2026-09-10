@@ -1,4 +1,4 @@
-%% deploy_code.m
+%% step4_deploy_code.m
 % =========================================================================
 % DEPLOY GENERATED ALGORITHM CODE TO FIRMWARE
 % =========================================================================
@@ -34,7 +34,7 @@ codegenDir = fullfile(simulinkDir, 'algorithm_ert_rtw');
 firmwareAlgoDir = fullfile(projectRoot, 'firmware', 'algorithm');
 
 if ~exist(codegenDir, 'dir')
-    error('Code generation directory "%s" not found. Please run generate_code.m first.', codegenDir);
+    error('Code generation directory "%s" not found. Please run step3_generate_code.m first.', codegenDir);
 end
 
 if ~exist(firmwareAlgoDir, 'dir')

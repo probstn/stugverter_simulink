@@ -3,91 +3,95 @@
 % section at a time with Ctrl+Enter. Do not run the complete file at once.
 %
 % Active commissioning configuration:
-%   Fixed assumed DC bus:       40 V (there is no DC-bus sensor yet)
+%   Fixed assumed DC bus:       20 V
 %   Controller current limit:   0.80 A peak
 %   Software current trip:      0.90 A peak
-%   Power-supply limit:         set externally to 40 V / 1 A
+%   Power-supply limit:         set externally to 20 V / 1 A
 %
 % Control modes: 0=OFF, 1=TORQUE, 2=SPEED, 3=OPEN_LOOP
-% Calibration:   0=NONE, 1=CURRENT_ZERO, 2=ANGLE_ZERO, 3=FULL
+% Calibration:   0=NONE, 1=CURRENT_ZERO, 2=RESOLVER_ZERO, 3=FULL
+%
+% Workflow Structure:
+%   Step 1: Run SIL Simulation (generates sil_results.mat)
+%   Step 2: Verify SIL Modes & Supervisor Logic
+%   Step 3: Generate Embedded C Code (Embedded Coder)
+%   Step 4: Deploy Generated C Code into TC387 Firmware Project
+%   Step 5: Build & Flash Infineon AURIX TC387 Target via winIDEA
+%   Step 6: Run HIL Simulation with Target (generates hil_results.mat)
+%   Step 7: Compare SIL vs HIL (loads prior results directly; does not re-simulate)
+%   Step 8: Launch Hardware Commissioning Dashboard Monitor (stugverter_monitor.slx)
 
-simulinkDir = fileparts(mfilename('fullpath'));
+simulinkDir = currentProject().RootFolder;
 addpath(fullfile(simulinkDir, 'scripts'), fullfile(simulinkDir, 'models'));
 
-%% 1. SIL: simulate the controller and plant
-% Runs the 40 V / <1 A speed profile with the controller inside Simulink.
-run(fullfile(simulinkDir, 'scripts', 'run_simulation.m'));
+%% 1. SIL: Simulate controller and Fischer motor plant in Simulink
+% Runs the 20 V / <1 A speed profile with the pure Simulink SIL controller.
+% Saves simulation output to simulink/sil_results.mat and workspace 'silOut'.
+run(fullfile(simulinkDir, 'scripts', 'step1_run_sil.m'));
 
-%% 2. SIL supervisor/mode regression
-% Verifies boot current calibration, conditional angle calibration, IDLE,
-% READY, RUN, FAULT-safe duty, and torque/speed/open-loop selection.
-run(fullfile(simulinkDir, 'scripts', 'validate_demo_modes.m'));
+%% 2. SIL: Supervisor & mode regression verification
+% Verifies boot current-zero calibration, conditional resolver calibration,
+% IDLE, READY, RUN, FAULT-safe duty, and torque/speed/open-loop transitions.
+run(fullfile(simulinkDir, 'scripts', 'step2_verify_sil_modes.m'));
 
-%% 3. Generate embedded C code
-run(fullfile(simulinkDir, 'scripts', 'generate_code.m'));
+%% 3. Code Generation: Generate embedded C code via Embedded Coder
+% Compiles algorithm.slx with the updated 32-bit fault word (g_fault_flags).
+run(fullfile(simulinkDir, 'scripts', 'step3_generate_code.m'));
 
-%% 4. Deploy generated controller into the TC387 firmware project
-run(fullfile(simulinkDir, 'scripts', 'deploy_code.m'));
+%% 4. Deploy: Copy generated code into TC387 firmware project
+% Copies generated source and headers to firmware/algorithm/.
+run(fullfile(simulinkDir, 'scripts', 'step4_deploy_code.m'));
 
-%% 5. Build, flash, and verify safe TC387 boot
-% The flash script requires winIDEA to be open and connected. It verifies
-% neutral PWM, gate drivers disabled, and enable request cleared after reset.
-run(fullfile(simulinkDir, 'scripts', 'flash_target.m'));
+%% 5. Flash: Compile firmware and flash AURIX TC387 via winIDEA
+% Connects to winIDEA, flashes firmware.elf, verifies safe neutral boot:
+% PWM=[0.5, 0.5, 0.5], gate drivers disabled, enable request cleared.
+run(fullfile(simulinkDir, 'scripts', 'step5_flash_target.m'));
 
-%% 6. HIL: simulated plant with the real TC387 controller over XCP
-% HIL STIM is paced for reliable Windows/UDP exchange. The algorithm sample
-% time remains 50 us; pacing never changes the controller discretization.
-run(fullfile(simulinkDir, 'scripts', 'run_hil.m'));
+%% 6. HIL: Simulated plant with real TC387 controller over XCP UDP
+% Injects plant feedback via XCP STIM and acquires target PWM duties in lockstep.
+% Saves target simulation results to simulink/hil_results.mat and workspace 'hilOut'.
+run(fullfile(simulinkDir, 'scripts', 'step6_run_hil.m'));
 
-%% 7. Compare SIL and HIL on a common 50 us grid
-run(fullfile(simulinkDir, 'scripts', 'validate_sil_hil.m'));
+%% 7. Compare SIL and HIL: Compare previous independent runs
+% Compares results from Step 1 (sil_results.mat) and Step 6 (hil_results.mat).
+% NOTE: This step DOES NOT re-run simulations; it compares the prior data directly.
+run(fullfile(simulinkDir, 'scripts', 'step7_compare_sil_hil.m'));
 
-%% 8. ACTUAL HARDWARE: open the real-time XCP commissioning console
-% Preconditions before applying the DC supply:
-%   - Emergency stop and hardware overcurrent/desaturation path verified.
-%   - Power supply set to 40 V with a hard 1 A current limit.
-%   - Motor mechanically secured and resolver polarity checked.
-%   - Begin with Enable=OFF, Mode=OFF, Manual Speed=0.
+%% 8. ACTUAL HARDWARE: Open interactive real-time XCP dashboard monitor
+% Launches stugverter_monitor.slx containing the formatted HMI dashboard:
+%   - 20 kHz telemetry DAQ (control loop speed)
+%   - Master enable toggle,the calib mode selector (OFF, TORQUE, SPEED, OPEN_LOOP)
+%   - Manual speed reference with a conservative 300 rpm commissioning limit
+%   - Open-loop controls (Frequency 0.2-2 Hz, Modulation 0.001-0.01)
+%   - Calibration controls (Current zero, Resolver zero offset display in deg/rad)
+%   - Fault bit indicators (unpacked from uint32 g_fault_flags) and Fault Reset
+%   - Real-time rotor speed waveform scope and radial speedometer gauge
+run(fullfile(simulinkDir, 'scripts', 'step8_run_hardware_monitor.m'));
+
+%% 9. Manual hardware controls (optional script commands during live monitor)
+% You can use the interactive dashboard switches directly in the model,
+% or run these commands from the MATLAB command window:
 %
-% run_hardware opens stugverter_monitor.slx and starts it asynchronously.
-% The TC387 control ISR continues at 20 kHz. Simulink exchanges commands and
-% telemetry at 100 Hz, in real wall-clock time, without throttling control.
-run(fullfile(simulinkDir, 'scripts', 'run_hardware.m'));
-
-%% 9. Manual hardware controls (run individual lines while monitor is running)
-% First select a mode, then switch Enable Command ON in the model.
-set_param('stugverter_monitor/Mode Request', 'Value', '2');       % SPEED
-set_param('stugverter_monitor/Manual Speed', 'Value', '100');     % RPM
-% Use the Enable Command manual switch in the model to start/stop.
-% Change mode only after Enable is OFF; the supervisor enforces re-arming.
+% Enable Speed Mode at 100 RPM:
+%   set_param('stugverter_monitor/Communications Backend/Mode Request', 'Value', '2');
+%   set_param('stugverter_monitor/Communications Backend/Manual Speed', 'Value', '100');
 %
-% Other modes:
-% set_param('stugverter_monitor/Mode Request', 'Value', '1');     % TORQUE
-% set_param('stugverter_monitor/Torque Reference', 'Value', '0.05'); % Nm
-% set_param('stugverter_monitor/Mode Request', 'Value', '3');     % OPEN LOOP
-% set_param('stugverter_monitor/Open Loop Hz', 'Value', '1');
-% set_param('stugverter_monitor/Open Loop Modulation', 'Value', '0.001');
+% Open Loop Mode (e.g. 1 Hz, 0.001 modulation for Fischer motor spinning test):
+%   set_param('stugverter_monitor/Communications Backend/Mode Request', 'Value', '3');
+%   set_param('stugverter_monitor/Communications Backend/Open Loop Hz', 'Value', '1.0');
+%   set_param('stugverter_monitor/Communications Backend/Open Loop Modulation', 'Value', '0.001');
+%
+% Trigger Resolver Angle Calibration (Fischer motor must be free to align):
+%   set_param('stugverter_monitor/Communications Backend/Calibration Request', 'Value', '2');
+%   pause(1.0);
+%   set_param('stugverter_monitor/Communications Backend/Calibration Request', 'Value', '0');
 
-%% 10. Manual calibrations over XCP
-% Current zero: gates remain disabled. Always runs automatically at boot.
-set_param('stugverter_monitor/Calibration Request', 'Value', '1');
-pause(0.25);
-set_param('stugverter_monitor/Calibration Request', 'Value', '0');
-% Angle zero (ONLY with the 40 V / 1 A supply limit and secured motor):
-% set_param('stugverter_monitor/Calibration Request', 'Value', '2');
-% pause(1.0);
-% set_param('stugverter_monitor/Calibration Request', 'Value', '0');
-
-%% 11. Run a real-time speed profile through XCP STIM
-% Edit hardware_speed_profile in run_hardware.m if needed. In the monitor,
-% switch Manual/Profile to the profile input, select SPEED, then enable.
-% Profile samples are sent at 100 Hz while the target loop remains at 20 kHz.
-
-%% 12. Safe shutdown
-% Toggle Enable Command OFF first, then stop the model. The target also has a
-% 200 ms XCP-command watchdog for cable/model failures.
-set_param('stugverter_monitor/Enable OFF', 'Value', '0');
-set_param('stugverter_monitor/Enable ON', 'Value', '0');
-set_param('stugverter_monitor/Mode Request', 'Value', '0');
-pause(0.10); % allow several 100 Hz STIM frames to reach the target
+%% 10. Safe shutdown
+% Turn OFF Enable switch, set Mode to 0 (OFF), and stop the monitor model.
+% The target MCU has an autonomous 200 ms watchdog that safely disables gates
+% if communication is interrupted.
+set_param('stugverter_monitor/Communications Backend/Enable Request Value', 'Value', '0');
+set_param('stugverter_monitor/Communications Backend/Mode Request', 'Value', '0');
+set_param('stugverter_monitor/Communications Backend/Calibration Request', 'Value', '0');
+pause(0.10);
 set_param('stugverter_monitor', 'SimulationCommand', 'stop');

@@ -1,4 +1,4 @@
-%% run_simulation.m
+%% step1_run_sil.m
 % =========================================================================
 % STUGVERTER SIL SIMULATION & RESULT INSPECTION
 % =========================================================================
@@ -269,3 +269,9 @@ legend('Location', 'eastoutside', 'FontSize', 9);
 
 drawnow;
 fprintf('[+] Figures and scopes opened directly for investigation.\n');
+
+% Save SIL results for standalone comparison step
+silDataFile = fullfile(simulinkDir, 'sil_results.mat');
+save(silDataFile, 'simOut', 'rpm_ref', 'rpm_meas', 't', 'id_act', 'iq_act', 'id_ref_eff', 'iq_ref', 'V_mag');
+assignin('base', 'silOut', simOut);
+fprintf('[+] SIL results saved to: %s (silOut assigned to workspace)\n', silDataFile);

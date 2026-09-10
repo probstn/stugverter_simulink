@@ -8,7 +8,9 @@ arguments
 end
 helper = fullfile(fileparts(mfilename('fullpath')), 'wait_for_xcp.py');
 pythonExe = 'C:\winIDEA\Python\python.exe';
-if ~exist(pythonExe, 'file'), pythonExe = 'python'; end
+if ~exist(pythonExe, 'file')
+    pythonExe = 'python';
+end
 command = sprintf('"%s" "%s" --target %s --port %d --local %s --timeout %.3f', ...
     pythonExe, helper, targetAddress, targetPort, localAddress, timeoutSeconds);
 [status, output] = system(command);
@@ -17,5 +19,9 @@ if status ~= 0
     error('stugverter:XcpNotReady', '%s', strtrim(output));
 end
 token = regexp(output, 'XCP_READY_SECONDS=([0-9.]+)', 'tokens', 'once');
-if isempty(token), elapsed = NaN; else, elapsed = str2double(token{1}); end
+if isempty(token)
+    elapsed = NaN;
+else
+    elapsed = str2double(token{1});
+end
 end

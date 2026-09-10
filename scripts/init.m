@@ -44,10 +44,10 @@ run(fullfile(scriptsDir, 'controller_params.m'));
 %% Default Speed Reference Profile for Testing (RPM)
 % Multi-regime ramp profile:
 %   Startup: 0..0.15s calibration
-% Low-energy 40 V / <1 A commissioning profile.
+% Low-energy 20 V / <1 A commissioning profile.
 foc.simStopTime = 0.90;
 t_prof   = [0, 0.15, 0.35, 0.55, 0.70, 0.90];
-spd_prof = single([0, 0,    250, 700, 700, 200]);
+spd_prof = single([0, 0,    100, 300, 300, 100]);
 sp_ts = timeseries(spd_prof(:), t_prof(:));
 
 %% Export all variables to base and caller workspaces for Simulink evaluation

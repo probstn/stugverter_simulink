@@ -1,4 +1,4 @@
-%% validate_demo_modes.m
+%% step2_verify_sil_modes.m
 % SIL regression for all 5 supervisor states: IDLE, READY, RUN, FAULT, CALIBRATION.
 % Tests startup current-zero calibration, conditional 0 angle offset calibration,
 % and the three control modes: TORQUE, SPEED, and OPEN LOOP.
@@ -13,21 +13,21 @@ load_system(fullfile(simulinkDir, 'models', [model '.slx']));
 
 fprintf('\n--- 1. Testing IDLE State and Startup Current-Zero Calibration ---\n');
 % 1. Startup always performs current-zero averaging with PWM neutral (IDLE -> CALIBRATION -> IDLE/READY).
-[offDuty, offTime] = runCase(model, uint8(0), false, uint8(0), true, 0.13);
+[offDuty, offTime] = runCase(model, uint8(0), false, uint8(0), true, 0.52);
 assert(max(abs(offDuty(:) - single(0.5))) < 1e-6, ...
     'OFF/startup current calibration must command neutral duty.');
-assert(offTime(end) >= 0.129, 'Startup calibration test ended too early.');
+assert(offTime(end) >= 0.519, 'Startup calibration test ended too early.');
 fprintf('  [OK] Startup current-zero calibration completed with neutral duty.\n');
 
 fprintf('\n--- 2. Testing CALIBRATION State: 0 Angle Offset on User Request ---\n');
 % 2. Resolver calibration requested by user (calibration_request = 2)
-[calDuty, calTime] = runCase(model, uint8(0), true, uint8(2), true, 0.62);
+[calDuty, calTime] = runCase(model, uint8(0), true, uint8(2), true, 2.10);
 calActive = max(abs(calDuty - single(0.5)), [], 2) > 1e-4;
 firstActive = find(calActive, 1, 'first');
 lastActive = find(calActive, 1, 'last');
-assert(~isempty(firstActive) && calTime(firstActive) > 0.10, ...
+assert(~isempty(firstActive) && calTime(firstActive) > 0.49, ...
     'Resolver alignment started before current-zero calibration completed.');
-assert(calTime(lastActive) > 0.55 && calTime(lastActive) < 0.58, ...
+assert(calTime(lastActive) > 1.98 && calTime(lastActive) < 2.05, ...
     'Resolver alignment/sample duration is incorrect.');
 assert(max(abs(calDuty(end,:) - single(0.5))) < 1e-6, ...
     'Resolver calibration must finish at neutral PWM.');
@@ -35,13 +35,13 @@ fprintf('  [OK] User-requested 0 angle offset calibration passed.\n');
 
 fprintf('\n--- 3. Testing CALIBRATION State: Automatic 0 Angle Offset When No Stored Value ---\n');
 % 3. Resolver calibration automatically triggered when has_stored_resolver_offset = false
-[autoCalDuty, autoCalTime] = runCase(model, uint8(0), false, uint8(0), false, 0.62);
+[autoCalDuty, autoCalTime] = runCase(model, uint8(0), false, uint8(0), false, 2.10);
 autoCalActive = max(abs(autoCalDuty - single(0.5)), [], 2) > 1e-4;
 autoFirstActive = find(autoCalActive, 1, 'first');
 autoLastActive = find(autoCalActive, 1, 'last');
-assert(~isempty(autoFirstActive) && autoCalTime(autoFirstActive) > 0.10, ...
+assert(~isempty(autoFirstActive) && autoCalTime(autoFirstActive) > 0.49, ...
     'Automatic resolver alignment did not start after current cal.');
-assert(autoCalTime(autoLastActive) > 0.55 && autoCalTime(autoLastActive) < 0.58, ...
+assert(autoCalTime(autoLastActive) > 1.98 && autoCalTime(autoLastActive) < 2.05, ...
     'Automatic resolver alignment/sample duration is incorrect.');
 assert(max(abs(autoCalDuty(end,:) - single(0.5))) < 1e-6, ...
     'Automatic resolver calibration must finish at neutral PWM.');
@@ -49,7 +49,7 @@ fprintf('  [OK] Automatic 0 angle offset calibration without stored value passed
 
 fprintf('\n--- 4. Testing READY State (Calibrated, Mode Selected, Not Enabled) ---\n');
 % 4. Mode selected (SPEED=2), but enable_request = false -> stays in READY at neutral duty
-[readyDuty, ~] = runCase(model, uint8(2), false, uint8(0), true, 0.16);
+[readyDuty, ~] = runCase(model, uint8(2), false, uint8(0), true, 0.56);
 assert(max(abs(readyDuty(:) - single(0.5))) < 1e-6, ...
     'READY state with enable=false must command neutral duty.');
 fprintf('  [OK] READY state commands neutral duty while waiting for enable.\n');
@@ -58,21 +58,21 @@ fprintf('\n--- 5. Testing RUN State: TORQUE Mode ---\n');
 % 5. Torque mode (mode=1, enable=true): switch at MTPA input selects torque reference directly
 torque_ref_nm.Value = single(0.05);
 assignin('base', 'torque_ref_nm', torque_ref_nm);
-torqueDuty = runCase(model, uint8(1), true, uint8(0), true, 0.16);
+torqueDuty = runCase(model, uint8(1), true, uint8(0), true, 0.56);
 assert(any(abs(torqueDuty(:) - 0.5) > 1e-3), ...
     'TORQUE mode did not exercise the shared FOC path.');
 fprintf('  [OK] TORQUE mode active and modulating.\n');
 
 fprintf('\n--- 6. Testing RUN State: SPEED Mode ---\n');
 % 6. Speed mode (mode=2, enable=true): switch at MTPA input selects Speed PI torque command
-speedDuty = runCase(model, uint8(2), true, uint8(0), true, 0.20);
+speedDuty = runCase(model, uint8(2), true, uint8(0), true, 0.60);
 assert(any(abs(speedDuty(:) - 0.5) > 1e-3), ...
     'SPEED mode did not activate the speed PI and FOC path.');
 fprintf('  [OK] SPEED mode active with closed-loop speed regulation.\n');
 
 fprintf('\n--- 7. Testing RUN State: OPEN LOOP Mode ---\n');
 % 7. Open loop mode (mode=3, enable=true): rotating voltage vector generated in arbitration
-openDuty = runCase(model, uint8(3), true, uint8(0), true, 0.16);
+openDuty = runCase(model, uint8(3), true, uint8(0), true, 0.56);
 assert(max(openDuty(:)) - min(openDuty(:)) > 0.002, ...
     'OPEN LOOP mode did not generate a rotating voltage vector.');
 assert(max(abs(openDuty(:) - 0.5)) <= 0.0021, ...

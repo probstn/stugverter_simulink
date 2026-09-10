@@ -48,18 +48,19 @@ end
 open_loop_modulation.DataType = 'single';
 open_loop_modulation.CoderInfo.StorageClass = 'ExportedGlobal';
 if ~exist('calibration_modulation', 'var') || ~isa(calibration_modulation, 'Simulink.Parameter')
-    % Approximately 0.05 V at the fixed 40 V commissioning bus.
-    calibration_modulation = Simulink.Parameter(single(0.00125));
+    % Produces approximately 0.15 V line-to-line at the fixed 20 V bus,
+    % corresponding to roughly 0.6 A with the measured phase resistance.
+    calibration_modulation = Simulink.Parameter(single(0.005));
 end
 calibration_modulation.DataType = 'single';
 calibration_modulation.CoderInfo.StorageClass = 'ExportedGlobal';
 if ~exist('resolver_angle_offset', 'var') || ~isa(resolver_angle_offset, 'Simulink.Parameter')
-    resolver_angle_offset = Simulink.Parameter(single(0));
+    resolver_angle_offset = Simulink.Parameter(single(2.418204));
 end
 resolver_angle_offset.DataType = 'single';
 resolver_angle_offset.CoderInfo.StorageClass = 'ExportedGlobal';
 if ~exist('current_offset_counts', 'var') || ~isa(current_offset_counts, 'Simulink.Parameter')
-    current_offset_counts = Simulink.Parameter(single([2048; 2048; 2048]));
+    current_offset_counts = Simulink.Parameter(single([2051.155; 2056.162; 2052.236]));
 end
 current_offset_counts.DataType = 'single';
 current_offset_counts.CoderInfo.StorageClass = 'ExportedGlobal';
