@@ -43,14 +43,13 @@ end
 open_loop_electrical_hz.DataType = 'single';
 open_loop_electrical_hz.CoderInfo.StorageClass = 'ExportedGlobal';
 if ~exist('open_loop_modulation', 'var') || ~isa(open_loop_modulation, 'Simulink.Parameter')
-    open_loop_modulation = Simulink.Parameter(single(0.025));
+    open_loop_modulation = Simulink.Parameter(single(0.0015));
 end
 open_loop_modulation.DataType = 'single';
 open_loop_modulation.CoderInfo.StorageClass = 'ExportedGlobal';
 if ~exist('calibration_modulation', 'var') || ~isa(calibration_modulation, 'Simulink.Parameter')
-    % About 1.8 V phase excitation on the 600 V bus: enough to align the
-    % rotor without driving the 0.126 ohm winding into overcurrent.
-    calibration_modulation = Simulink.Parameter(single(0.003));
+    % Approximately 0.05 V at the fixed 40 V commissioning bus.
+    calibration_modulation = Simulink.Parameter(single(0.00125));
 end
 calibration_modulation.DataType = 'single';
 calibration_modulation.CoderInfo.StorageClass = 'ExportedGlobal';
@@ -92,7 +91,7 @@ if ~exist('hil_control_mode_request', 'var') || ~isa(hil_control_mode_request, '
 end
 hil_control_mode_request.DataType = 'uint8';
 
-protection.current_trip_A = single(105);
+protection.current_trip_A = single(0.90);
 protection.overspeed_rads = single(20000 * 2*pi/60);
 protection.resolver_min_amplitude = single(0.10);
 protection.resolver_max_amplitude = single(1.30);

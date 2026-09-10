@@ -63,5 +63,5 @@ Before connecting the traction supply or enabling gate drivers:
    limited, but integrator saturation/anti-windup should be checked on the rig.
 
 The top-level model is rebuilt reproducibly by
-`scripts/cleanup_algorithm_top_level.m`. Long cross-sheet dependencies use
+The top-level layout is stored directly in `models/algorithm.slx`. Long cross-sheet dependencies use
 named Goto/From tags; local data paths remain direct wires.

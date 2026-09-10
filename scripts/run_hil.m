@@ -273,7 +273,7 @@ if hasIdAct
 
     % Voltage Limit Ellipses at key operating speeds
     center_id = -fl / Ld;
-    speeds_rpm = [pmsm.N_base, 14000, 18000];
+    speeds_rpm = [pmsm.N_base, 0.85*pmsm.N_max, pmsm.N_max];
     colors_volt = [0.85 0.35 0.05; 0.65 0.15 0.65; 0.75 0.05 0.15];
     styles_volt = {':', '--', '-'};
 

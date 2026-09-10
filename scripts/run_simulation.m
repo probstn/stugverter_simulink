@@ -131,8 +131,10 @@ fprintf('  Max Absolute Iq Error:     %10.2f A\n', max_iq_err);
 fprintf('  Peak Stator Phase Voltage: %10.2f V (Phase limit: %.2f V)\n', max_V_mag, foc.V_phase_max);
 fprintf('----------------------------------------------------------------\n');
 
-assert(max_rpm_meas > 17500, 'Motor failed to reach target speed (> 17,500 RPM)');
-assert(abs(final_rpm_meas - final_rpm_ref) < 150, 'Final speed tracking error exceeds limit');
+assert(max_rpm_meas > 0.90 * max_rpm_ref, ...
+    'Motor failed to reach 90%% of the low-voltage target speed.');
+assert(abs(final_rpm_meas - final_rpm_ref) < max(20, 0.05 * abs(final_rpm_ref)), ...
+    'Final speed tracking error exceeds the commissioning limit.');
 fprintf('>>> All SIL performance criteria satisfied! <<<\n\n');
 
 % 7. Figure 1: Time-Domain Dynamic Performance
@@ -197,7 +199,7 @@ plot(Imax * cos(theta_circ), Imax * sin(theta_circ), 'r-', 'LineWidth', 2.0, ...
 
 % Voltage Limit Ellipses at key operating speeds
 center_id = -fl / Ld;
-speeds_rpm = [pmsm.N_base, 14000, 18000];
+speeds_rpm = [pmsm.N_base, 0.85*pmsm.N_max, pmsm.N_max];
 colors_volt = [0.85 0.35 0.05; 0.65 0.15 0.65; 0.75 0.05 0.15];
 styles_volt = {':', '--', '-'};
 

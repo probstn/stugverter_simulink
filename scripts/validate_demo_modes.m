@@ -56,7 +56,7 @@ fprintf('  [OK] READY state commands neutral duty while waiting for enable.\n');
 
 fprintf('\n--- 5. Testing RUN State: TORQUE Mode ---\n');
 % 5. Torque mode (mode=1, enable=true): switch at MTPA input selects torque reference directly
-torque_ref_nm.Value = single(1);
+torque_ref_nm.Value = single(0.05);
 assignin('base', 'torque_ref_nm', torque_ref_nm);
 torqueDuty = runCase(model, uint8(1), true, uint8(0), true, 0.16);
 assert(any(abs(torqueDuty(:) - 0.5) > 1e-3), ...
@@ -73,9 +73,9 @@ fprintf('  [OK] SPEED mode active with closed-loop speed regulation.\n');
 fprintf('\n--- 7. Testing RUN State: OPEN LOOP Mode ---\n');
 % 7. Open loop mode (mode=3, enable=true): rotating voltage vector generated in arbitration
 openDuty = runCase(model, uint8(3), true, uint8(0), true, 0.16);
-assert(max(openDuty(:)) - min(openDuty(:)) > 0.04, ...
+assert(max(openDuty(:)) - min(openDuty(:)) > 0.002, ...
     'OPEN LOOP mode did not generate a rotating voltage vector.');
-assert(max(abs(openDuty(:) - 0.5)) <= 0.041, ...
+assert(max(abs(openDuty(:) - 0.5)) <= 0.0021, ...
     'OPEN LOOP exceeded the commissioning modulation limit.');
 fprintf('  [OK] OPEN LOOP mode generates rotating sinusoidal voltage vector.\n');
 
